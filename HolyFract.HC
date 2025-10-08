@@ -1,10 +1,8 @@
-#define C_KEY GetChar(0)
-#define S_CX GR_WIDTH >> 1
-#define S_CY GR_HEIGHT >> 1
+#define S_CX (GR_WIDTH >> 1)
+#define S_CY (GR_HEIGHT >> 1)
 
-F64 M_CX, M_CY = 0; // these are math plane coords, the ones above are for the screen
-I64 px, py;
-F64 scale = 3.0/GR_WIDTH;
+F64 M_CX = 0, M_CY = 0; // these are math plane coords, the ones above are for the screen
+F64 scale = 3.0 / GR_WIDTH;
 
 U0 ScreenToComplex(I64 x, I64 y, F64 *re, F64 *im)
 {
@@ -12,64 +10,104 @@ U0 ScreenToComplex(I64 x, I64 y, F64 *re, F64 *im)
     *im = M_CY + (y - S_CY) * scale;
 }
 
-Bool K_DOWN(I64 KEY_CODE)
+I64 MandelIter(F64 re, F64 im, I64 max_iter)
 {
-    return Bt(kbd.down_bitmap, KEY_CODE);
+    F64 zr = 0.0, zi = 0.0;
+    F64 zr2 = 0.0, zi2 = 0.0, t = 0.0;
+
+    for (I64 i = 0; i < max_iter; i++)
+    {
+        zr2 = zr * zr;
+        zi2 = zi * zi;
+
+        if (zr2 + zi2 > 4.0)
+            return i;
+
+        t  = zr * zi;
+        zi = 2.0 * t + im;
+        zr = zr2 - zi2 + re;
+    }
+
+    return max_iter;
 }
 
-/* well, this isn't really related to fractals
-   but it might be useful for camera panning! */
-U0 HandleMovement()
+U32 MandelColor(I64 iter, I64 max_iter)
 {
-    if(K_DOWN(SC_CURSOR_UP))    py -= 1;
-    if(K_DOWN(C_CURSOR_DOWN))  py += 1;
-    if(K_DOWN(SC_CURSOR_LEFT))  px -= 1;
-    if(K_DOWN(SC_CURSOR_RIGHT)) px += 1;
+    // TODO: implement more colors
+    if (iter == max_iter)
+        return BLACK;
+    else
+        return WHITE;
 }
 
-U0 DrawIt(CTask *t, CDC *dc)
+U0 RenderMandel(CDC *dc)
 {
-    dc->color = WHITE;
-    GrRect(dc, 0, 0, GR_WIDTH, GR_HEIGHT);
+    F64 re, im;
+    I64 x, y, iter;
+    I64 max_iter = 128;
 
-    dc->color = RED;
-    GrRect(dc, px-50, py-50, 100, 100);
-
-    dc->color = BLACK;
-    GrPlot(dc, px, py);
-
-    HandleMovement;
+    for (y = 0; y < GR_HEIGHT; y++)
+    {
+        for (x = 0; x < GR_WIDTH; x++)
+        {
+            ScreenToComplex(x, y, &re, &im);
+            iter = MandelIter(re, im, max_iter);
+            dc->color = MandelColor(iter, max_iter);
+            GrPlot(dc, x, y);
+        }
+    }
 }
 
 U0 Main()
 {
+    I64 i;
+    CDC *dc = DCAlias;
+
     SettingsPush;
-    WinBorder;
     WinMax;
+    WinBorder;
+    DocCursor;
     DocClear;
 
-    px = S_CX;
-    py = S_CY;
+    DCFill(dc);
+    RenderMandel(dc);
 
-    Fs->draw_it = &DrawIt;
+    I64 ch, sc;
 
-    "HolyFract started...\n";
-
-    while(TRUE)
+    while (TRUE)
     {
-        if(C_KEY == CH_ESC) break;
+        if (ScanKey(&ch, &sc))
+        {
+            if (ch == CH_ESC)
+                break;
+
+            if (ch == 0)
+            {
+                switch (sc.u8[0])
+                {
+                    case SC_CURSOR_UP:    M_CY -= 32 * scale * 0.5; break;
+                    case SC_CURSOR_DOWN:  M_CY += 32 * scale * 0.5; break;
+                    case SC_CURSOR_LEFT:  M_CX -= 32 * scale * 0.5; break;
+                    case SC_CURSOR_RIGHT: M_CX += 32 * scale * 0.5; break;
+                }
+            }
+            else
+            {
+                if (ch == 'a') scale *= 0.5;
+                if (ch == 'd') scale *= 2.0;
+            }
+
+            RenderMandel(dc);
+
+            // flush buffered keys, couldn't find the correct command so I'm doing this
+            while (ScanKey(&ch, &sc)) { }
+        }
+
+        Sleep(50);
     }
 
-    "HolyFract aborted...\n";
-
-    F64 re, im;
-
-    ScreenToComplex(S_CX, S_CY, &re, &im); "\nCenter: re=%.2f, im=%.2f\n\n", re, im;
-    ScreenToComplex(0, 0, &re, &im); "TopLeft: re=%.2f, im=%.2f\n\n", re, im;
-    ScreenToComplex(GR_WIDTH, GR_HEIGHT, &re, &im); "BottomRight: re=%.2f, im=%.2f\n\n", re, im;
-    ScreenToComplex(512, 384, &re, &im); "Center: re=%.2f, im=%.2f\n\n", re, im;
-    ScreenToComplex(1024, 0, &re, &im); "TopRight: re=%.2f, im=%.2f\n\n", re, im;
-
+    DCFill(dc);
+    DCDel(dc);
     SettingsPop;
 }
 
