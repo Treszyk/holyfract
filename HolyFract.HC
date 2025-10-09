@@ -1,7 +1,8 @@
 #define S_CX (GR_WIDTH >> 1)
 #define S_CY (GR_HEIGHT >> 1)
+F64 M_CX = -0.5, M_CY = 0; // these are math plane coords, the ones above are for the screen
 
-F64 M_CX = 0, M_CY = 0; // these are math plane coords, the ones above are for the screen
+I64 max_iter = 128
 F64 scale = 3.0 / GR_WIDTH;
 
 U0 ScreenToComplex(I64 x, I64 y, F64 *re, F64 *im)
@@ -33,18 +34,20 @@ I64 MandelIter(F64 re, F64 im, I64 max_iter)
 
 U32 MandelColor(I64 iter, I64 max_iter)
 {
-    // TODO: implement more colors
-    if (iter == max_iter)
-        return BLACK;
-    else
-        return WHITE;
+    if (iter >= max_iter || iter <= 4) return 0;
+
+    F64 t = iter(F64) / max_iter(F64);
+    t = Sqrt(t);
+    I64 idx = 1 + (t * 14.0)(I64);
+
+    if (idx > 15) idx = 15;
+    return (iter >> 3) & (COLORS_NUM - 1);
 }
 
 U0 RenderMandel(CDC *dc)
 {
     F64 re, im;
     I64 x, y, iter;
-    I64 max_iter = 128;
 
     for (y = 0; y < GR_HEIGHT; y++)
     {
@@ -58,18 +61,40 @@ U0 RenderMandel(CDC *dc)
     }
 }
 
-U0 Main()
+U0 ApplyFractalPalette()
 {
     I64 i;
-    CDC *dc = DCAlias;
+    CBGR48 bgr;
 
+    GrPaletteColorSet(0, 0x000000);
+    for (i = 1; i < COLORS_NUM; i++)
+    {
+        I64 v = (0xFFFF * i) / (COLORS_NUM - 1);
+        bgr.r = v >> 1;
+        bgr.g = 0;
+        bgr.b = v;
+
+        GrPaletteColorSet(i, bgr);
+    }
+}
+
+U0 Main()
+{
+    CDC *dc = DCAlias;
     SettingsPush;
+    ApplyFractalPalette;
     WinMax;
     WinBorder;
     DocCursor;
     DocClear;
-
+    AutoComplete;
     DCFill(dc);
+
+    // seahorse valley quickstart
+    // M_CX = -0.74364388703715;
+    // M_CY = 0.13182590420533;
+    // scale = 0.006 / GR_WIDTH;
+
     RenderMandel(dc);
 
     I64 ch, sc;
@@ -95,6 +120,8 @@ U0 Main()
             {
                 if (ch == 'a') scale *= 0.5;
                 if (ch == 'd') scale *= 2.0;
+                if (ch == 'm') max_iter = 1024;
+                if (ch == 'n') max_iter = 128;
             }
 
             RenderMandel(dc);
