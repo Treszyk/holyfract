@@ -25,14 +25,14 @@ Rendering is performed directly to a device context (**CDC** in **TempleOS**) us
 
 # Controls
 
-| Key           | Action       |
-| ------------- | ------------ |
+| Key           | Action                            |
+| ------------- | --------------------------------- |
 | ↑ / ↓ / ← / → | Move view                         |
 | A             | Zoom in                           |
 | D             | Zoom out                          |
 | M             | Set max iterations to 1024        |
 | N             | Set max iterations to default 128 |
-| ESC           | Exit program |
+| ESC           | Exit program                      |
 
 # Implementation Details
 
@@ -67,15 +67,13 @@ U32 MandelColor(I64 iter, I64 max_iter)
     if (iter >= max_iter || iter <= 4) return 0;
 
     F64 t = iter(F64) / max_iter(F64);
-    t = Sqrt(t);
-    I64 idx = 1 + (t * 14.0)(I64);
 
-    if (idx > 15) idx = 15;
     return (iter >> 3) & (COLORS_NUM - 1);
 }
 ```
 
 Color logic is isolated in MandelColor(). And setting the palette is handled in ApplyFractalPalette():
+
 ```
 U0 ApplyFractalPalette()
 {
@@ -103,17 +101,18 @@ Optimization is planned through progressive rendering with a couple of different
 # Preview
 
 ![gradient_holyfractv1](https://github.com/user-attachments/assets/8d68ebe8-e137-4848-8d44-d65007c62d6e)
-*Initial gradient render – 128 iterations per pixel*
+_Initial gradient render – 128 iterations per pixel_
 
 ![gradient_holyfractv2](https://github.com/user-attachments/assets/73c66076-7cc2-4e77-82d0-0dafd6b8ff96)
-*Zoomed in view of the fractal - 4096 iterations per pixel*
+_Zoomed in view of the fractal - 4096 iterations per pixel_
 
 # Known Limitations
 
 - Input buffer flush is handled manually with:
 
       while (ScanKey(&ch, &sc)) { }
+
   Needs to be replaced with a proper buffer flush method once available.
 
 - No progressive rendering or caching.
-- Framerate drops significantly at high zoom levels.
+- Framerate drops significantly at high zoom levels (precision fails as well).

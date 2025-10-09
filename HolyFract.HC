@@ -5,28 +5,54 @@ F64 M_CX = -0.5, M_CY = 0; // these are math plane coords, the ones above are fo
 I64 max_iter = 128
 F64 scale = 3.0 / GR_WIDTH;
 
+// TODO: make it render as the opposite of the underlying color
+//       which will be problematic with the already limitted palette...
+U0 RenderCrosshair(CDC *dc)
+{
+    I64 len = 8;
+    dc->color = 0;
+
+    GrLine(dc, S_CX - len, S_CY, S_CX + len, S_CY);
+    GrLine(dc, S_CX, S_CY - len, S_CX, S_CY + len);
+}
+
 U0 ScreenToComplex(I64 x, I64 y, F64 *re, F64 *im)
 {
     *re = M_CX + (x - S_CX) * scale;
     *im = M_CY + (y - S_CY) * scale;
 }
 
+// early checks for the most obvious parts of the fractal
+Bool InMainCardioidOrBulb(F64 re, F64 im)
+{
+    // bulb
+    F64 ar = re + 1.0;
+    if (ar * ar + im * im <= 0.0625) return TRUE;
+
+    // main cardioid
+    F64 xr = re - 0.25;
+    F64 q = xr * xr + im * im;
+    if (q * (q + xr) < 0.25 * im * im) return TRUE;
+
+    return FALSE; 
+}
+
 I64 MandelIter(F64 re, F64 im, I64 max_iter)
 {
     F64 zr = 0.0, zi = 0.0;
     F64 zr2 = 0.0, zi2 = 0.0, t = 0.0;
+    I64 i;
 
-    for (I64 i = 0; i < max_iter; i++)
+    for (i = 0; i < max_iter; i++)
     {
         zr2 = zr * zr;
         zi2 = zi * zi;
 
-        if (zr2 + zi2 > 4.0)
-            return i;
-
         t  = zr * zi;
         zi = 2.0 * t + im;
         zr = zr2 - zi2 + re;
+
+        if (zr2 + zi2 > 4.0) return i+1;
     }
 
     return max_iter;
@@ -37,10 +63,7 @@ U32 MandelColor(I64 iter, I64 max_iter)
     if (iter >= max_iter || iter <= 4) return 0;
 
     F64 t = iter(F64) / max_iter(F64);
-    t = Sqrt(t);
-    I64 idx = 1 + (t * 14.0)(I64);
 
-    if (idx > 15) idx = 15;
     return (iter >> 3) & (COLORS_NUM - 1);
 }
 
@@ -51,12 +74,17 @@ U0 RenderMandel(CDC *dc)
 
     for (y = 0; y < GR_HEIGHT; y++)
     {
+        F64 re, im;
+        ScreenToComplex(0, y, &re, &im);
         for (x = 0; x < GR_WIDTH; x++)
         {
-            ScreenToComplex(x, y, &re, &im);
-            iter = MandelIter(re, im, max_iter);
+            if (InMainCardioidOrBulb(re, im)) iter = max_iter;
+            else                              iter = MandelIter(re, im, max_iter);
+            
             dc->color = MandelColor(iter, max_iter);
             GrPlot(dc, x, y);
+            
+            re += scale;
         }
     }
 }
@@ -96,6 +124,7 @@ U0 Main()
     // scale = 0.006 / GR_WIDTH;
 
     RenderMandel(dc);
+    RenderCrosshair(dc);
 
     I64 ch, sc;
 
