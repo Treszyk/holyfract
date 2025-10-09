@@ -1,7 +1,7 @@
 # HolyFract
 
 A minimal Mandelbrot fractal renderer written in **HolyC** for **TempleOS**.  
-Renders a monochromatic Mandelbrot set to the screen and allows basic navigation and zoom using keyboard input.
+Renders a Mandelbrot set to the screen and allows basic navigation and zoom using keyboard input.
 
 # Overview
 
@@ -10,8 +10,8 @@ Rendering is performed directly to a device context (**CDC** in **TempleOS**) us
 
 # Features
 
-- Monochromatic fractal rendering  
-  Basic Mandelbrot visualization in black and white.
+- Gradient fractal rendering  
+  Basic Mandelbrot visualization in different shades of purple
 
 - Keyboard navigation  
   Arrow keys pan across the complex plane.  
@@ -27,9 +27,11 @@ Rendering is performed directly to a device context (**CDC** in **TempleOS**) us
 
 | Key           | Action       |
 | ------------- | ------------ |
-| ↑ / ↓ / ← / → | Move view    |
-| A             | Zoom in      |
-| D             | Zoom out     |
+| ↑ / ↓ / ← / → | Move view                         |
+| A             | Zoom in                           |
+| D             | Zoom out                          |
+| M             | Set max iterations to 1024        |
+| N             | Set max iterations to default 128 |
 | ESC           | Exit program |
 
 # Implementation Details
@@ -57,12 +59,41 @@ Returns the iteration count where the iterations escape to infinity, or max_iter
 
 ## Rendering
 
-Each pixel’s iteration count is converted to a monochrome value:
+Each pixel’s iteration count is converted to a shade of purple:
 
-    iter == max_iter → BLACK
-    else             → WHITE
+```
+U32 MandelColor(I64 iter, I64 max_iter)
+{
+    if (iter >= max_iter || iter <= 4) return 0;
 
-Color logic is isolated in MandelColor(). Though the color logic is very simple now it will make the implementation of more values easier.
+    F64 t = iter(F64) / max_iter(F64);
+    t = Sqrt(t);
+    I64 idx = 1 + (t * 14.0)(I64);
+
+    if (idx > 15) idx = 15;
+    return (iter >> 3) & (COLORS_NUM - 1);
+}
+```
+
+Color logic is isolated in MandelColor(). And setting the palette is handled in ApplyFractalPalette():
+```
+U0 ApplyFractalPalette()
+{
+    I64 i;
+    CBGR48 bgr;
+
+    GrPaletteColorSet(0, 0x000000);
+    for (i = 1; i < COLORS_NUM; i++)
+    {
+        I64 v = (0xFFFF * i) / (COLORS_NUM - 1);
+        bgr.r = v >> 1;
+        bgr.g = 0;
+        bgr.b = v;
+
+        GrPaletteColorSet(i, bgr);
+    }
+}
+```
 
 ## Performance
 
@@ -71,11 +102,11 @@ Optimization is planned through progressive rendering with a couple of different
 
 # Preview
 
-![holyfractv1](https://github.com/user-attachments/assets/244f12d6-1a91-4b00-b817-548bec5826c0)
-*Initial monochrome render – 128 iterations per pixel*
+![gradient_holyfractv1](https://github.com/user-attachments/assets/8d68ebe8-e137-4848-8d44-d65007c62d6e)
+*Initial gradient render – 128 iterations per pixel*
 
-![holyfractv2](https://github.com/user-attachments/assets/27225f15-2aad-48e6-88d8-853ebb99ae28)
-*Zoomed in view of the fractal - 256 iterations per pixel*
+![gradient_holyfractv2](https://github.com/user-attachments/assets/73c66076-7cc2-4e77-82d0-0dafd6b8ff96)
+*Zoomed in view of the fractal - 4096 iterations per pixel*
 
 # Known Limitations
 
