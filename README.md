@@ -5,7 +5,7 @@ Renders a Mandelbrot set to the screen and allows basic navigation and zoom usin
 
 # Overview
 
-holyfract implements a simple iterative Mandelbrot fractal visualizer.  
+HolyFract implements a simple iterative Mandelbrot fractal visualizer.  
 Rendering is performed directly to a device context (**CDC** in **TempleOS**) using per-pixel iteration counts to determine the pixel color.
 
 # Features
@@ -49,11 +49,20 @@ This ensures the fractal remains centered on the current viewport origin.
 
 The core iteration loop:
 
-    zr, zi = 0
-    for i in 0..max_iter:
-        if zr² + zi² > 4 → escape
-        zi = 2*zr*zi + im
-        zr = zr² - zi² + re
+```
+zr, zi = 0
+for i in 0..max_iter:
+    zr2 = zr²
+    zi2 = zi²
+
+    t = zr * zi
+    zi = 2 * t + im
+    zr = zr2 - zi2 + re
+
+    if zr2 + zi2 > 4 → escape
+
+return max_iter
+```
 
 Returns the iteration count where the iterations escape to infinity, or max_iter if the point remains bounded.
 
@@ -65,8 +74,6 @@ Each pixel’s iteration count is converted to a shade of purple:
 U32 MandelColor(I64 iter, I64 max_iter)
 {
     if (iter >= max_iter || iter <= 4) return 0;
-
-    F64 t = iter(F64) / max_iter(F64);
 
     return (iter >> 3) & (COLORS_NUM - 1);
 }
@@ -95,8 +102,8 @@ U0 ApplyFractalPalette()
 
 ## Performance
 
-Current implementation performs direct per-pixel iteration and rendering. This means that on higher zoom levels where iterations increase the math slows down heavily.  
-Optimization is planned through progressive rendering with a couple of different **LOD** levels.
+Current implementation renders frames in sub-grids. Over time, all pixels are filled without a heavy full-frame pass.
+Which keeps zooming/panning a bit more responsive.
 
 # Preview
 
@@ -113,6 +120,3 @@ _Zoomed in view of the fractal - 4096 iterations per pixel_
       while (ScanKey(&ch, &sc)) { }
 
   Needs to be replaced with a proper buffer flush method once available.
-
-- No progressive rendering or caching.
-- Framerate drops significantly at high zoom levels (precision fails as well).
