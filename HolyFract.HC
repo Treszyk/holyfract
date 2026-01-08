@@ -187,7 +187,7 @@ U0 Main()
         PreviewTick(dc);
       }
 
-      while (ScanKey(&ch,&sc)) { }
+      FlushMsgs;
     }
     else if (moving_frames > 0)
     {
