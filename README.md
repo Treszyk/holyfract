@@ -113,10 +113,6 @@ _Initial gradient render – 128 iterations per pixel_
 ![gradient_holyfractv2](https://github.com/user-attachments/assets/73c66076-7cc2-4e77-82d0-0dafd6b8ff96)
 _Zoomed in view of the fractal - 4096 iterations per pixel_
 
-# Known Limitations
-
-- Input buffer flush is handled manually with:
-
       while (ScanKey(&ch, &sc)) { }
 
   Needs to be replaced with a proper buffer flush method once available.
